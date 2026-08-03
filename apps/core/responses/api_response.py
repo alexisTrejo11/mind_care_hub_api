@@ -70,7 +70,6 @@ class APIResponse:
             "has_previous": paginator.page.has_previous(),
         }
 
-        print(data)
         return APIResponse.success(
             message=message,
             data=data,

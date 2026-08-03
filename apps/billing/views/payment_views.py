@@ -10,6 +10,7 @@ from apps.core.exceptions.base_exceptions import ValidationError
 from apps.core.decorators.error_handler import api_error_handler
 from apps.core.decorators.rate_limit import rate_limit
 from apps.core.responses.api_response import APIResponse
+from apps.core.openapi import api_schema
 
 from apps.billing.services import BillingService, PaymentService, StripeService
 from apps.billing.models import Refund, InsuranceClaim
@@ -27,33 +28,77 @@ from apps.billing.serializers import (
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List payments with filtering", tags=["Payments"]),
-    retrieve=extend_schema(summary="Get payment details", tags=["Payments"]),
+    list=extend_schema(
+        **api_schema(
+            tags=["Payments"],
+            summary="List payments with filtering",
+            data=PaymentSerializer,
+            paginated=True,
+            errors=(401, 429),
+        )
+    ),
+    retrieve=extend_schema(
+        **api_schema(
+            tags=["Payments"],
+            summary="Get payment details",
+            data=PaymentSerializer,
+            errors=(401, 404, 429),
+        )
+    ),
     create=extend_schema(
-        summary="Create payment (cash/bank/manual)", tags=["Payments", "Admin"]
+        **api_schema(
+            tags=["Payments", "Admin"],
+            summary="Create payment (cash/bank/manual)",
+            request=PaymentCreateSerializer,
+            data=PaymentSerializer,
+            status_code=201,
+            errors=(400, 401, 403, 429),
+        )
     ),
     create_online_intent=extend_schema(
-        summary="Create Stripe payment intent",
-        tags=["Payments", "Online"],
-        methods=["post"],
+        **api_schema(
+            tags=["Payments"],
+            summary="Create Stripe payment intent",
+            request=OnlinePaymentIntentSerializer,
+            data=OnlinePaymentIntentSerializer,
+            status_code=201,
+            errors=(400, 401, 429),
+        )
     ),
     confirm_online_payment=extend_schema(
-        summary="Confirm Stripe payment", tags=["Payments", "Online"], methods=["post"]
+        **api_schema(
+            tags=["Payments"],
+            summary="Confirm Stripe payment",
+            data=PaymentSerializer,
+            errors=(400, 401, 404, 429),
+        )
     ),
     verify_bank_transfer=extend_schema(
-        summary="Verify bank transfer (staff only)",
-        tags=["Payments", "Admin"],
-        methods=["post"],
+        **api_schema(
+            tags=["Payments", "Admin"],
+            summary="Verify bank transfer (staff only)",
+            data=PaymentSerializer,
+            errors=(400, 401, 403, 404, 429),
+        )
     ),
     process_refund=extend_schema(
-        summary="Issue payment refund",
-        tags=["Payments", "Refunds", "Admin"],
-        methods=["post"],
+        **api_schema(
+            tags=["Payments", "Admin"],
+            summary="Issue payment refund",
+            request=RefundCreateSerializer,
+            data=RefundSerializer,
+            status_code=201,
+            errors=(400, 401, 403, 404, 429),
+        )
     ),
     list_refunds=extend_schema(
-        summary="List refunds for payment",
-        tags=["Payments", "Refunds"],
-        methods=["get"],
+        **api_schema(
+            tags=["Payments"],
+            summary="List refunds for payment",
+            data=RefundSerializer,
+            many=True,
+            errors=(401, 404, 429),
+        )
     ),
 )
 class PaymentViewSet(viewsets.ModelViewSet):
@@ -354,6 +399,62 @@ class PaymentViewSet(viewsets.ModelViewSet):
         )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        **api_schema(
+            tags=["Payments"],
+            summary="List payment methods",
+            data=PaymentMethodSerializer,
+            many=True,
+            errors=(401, 429),
+        )
+    ),
+    retrieve=extend_schema(
+        **api_schema(
+            tags=["Payments"],
+            summary="Get payment method details",
+            data=PaymentMethodSerializer,
+            errors=(401, 404, 429),
+        )
+    ),
+    create=extend_schema(
+        **api_schema(
+            tags=["Payments"],
+            summary="Add payment method",
+            request=PaymentMethodSerializer,
+            data=PaymentMethodSerializer,
+            status_code=201,
+            errors=(400, 401, 429),
+        )
+    ),
+    update=extend_schema(
+        **api_schema(
+            tags=["Payments"],
+            summary="Update payment method",
+            request=PaymentMethodSerializer,
+            data=PaymentMethodSerializer,
+            errors=(400, 401, 404, 429),
+        )
+    ),
+    partial_update=extend_schema(
+        **api_schema(
+            tags=["Payments"],
+            summary="Partially update payment method",
+            request=PaymentMethodSerializer,
+            data=PaymentMethodSerializer,
+            errors=(400, 401, 404, 429),
+        )
+    ),
+    destroy=extend_schema(
+        **api_schema(
+            tags=["Payments"],
+            summary="Remove payment method",
+            message_only=True,
+            response_name="PaymentMethodDelete",
+            errors=(401, 404, 429),
+        )
+    ),
+)
 class PaymentMethodViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing user's stored payment methods.
@@ -484,6 +585,34 @@ class PaymentMethodViewSet(viewsets.ModelViewSet):
         )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        **api_schema(
+            tags=["Payments", "Admin"],
+            summary="List refunds",
+            data=RefundSerializer,
+            paginated=True,
+            errors=(401, 403, 429),
+        )
+    ),
+    retrieve=extend_schema(
+        **api_schema(
+            tags=["Payments", "Admin"],
+            summary="Get refund details",
+            data=RefundSerializer,
+            errors=(401, 403, 404, 429),
+        )
+    ),
+    partial_update=extend_schema(
+        **api_schema(
+            tags=["Payments", "Admin"],
+            summary="Update refund",
+            request=RefundSerializer,
+            data=RefundSerializer,
+            errors=(400, 401, 403, 404, 429),
+        )
+    ),
+)
 class RefundViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing refunds (admin/staff only).
@@ -597,6 +726,53 @@ class RefundViewSet(viewsets.ModelViewSet):
         )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="List insurance claims",
+            data=InsuranceClaimSerializer,
+            paginated=True,
+            errors=(401, 403, 429),
+        )
+    ),
+    retrieve=extend_schema(
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="Get insurance claim details",
+            data=InsuranceClaimSerializer,
+            errors=(401, 403, 404, 429),
+        )
+    ),
+    create=extend_schema(
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="Create insurance claim",
+            request=InsuranceClaimCreateSerializer,
+            data=InsuranceClaimSerializer,
+            status_code=201,
+            errors=(400, 401, 403, 429),
+        )
+    ),
+    update=extend_schema(
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="Update insurance claim",
+            request=InsuranceClaimSerializer,
+            data=InsuranceClaimSerializer,
+            errors=(400, 401, 403, 404, 429),
+        )
+    ),
+    partial_update=extend_schema(
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="Partially update insurance claim",
+            request=InsuranceClaimSerializer,
+            data=InsuranceClaimSerializer,
+            errors=(400, 401, 403, 404, 429),
+        )
+    ),
+)
 class InsuranceClaimViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing insurance claims (admin/staff only).

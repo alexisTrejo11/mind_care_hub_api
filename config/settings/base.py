@@ -476,7 +476,58 @@ CELERY_BEAT_SCHEDULE = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Mind Care Hub API",
-    "DESCRIPTION": "API documentation for Mind Care Hub",
+    "DESCRIPTION": """
+Mind Care Hub REST API.
+
+## Response envelope
+
+All JSON endpoints wrap payloads with `APIResponse`:
+
+**Success**
+```json
+{
+  "status": "success",
+  "message": "Human-readable message",
+  "data": {},
+  "metadata": {},
+  "pagination": {
+    "total": 0,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 0,
+    "has_next": false,
+    "has_previous": false
+  }
+}
+```
+`data`, `metadata`, and `pagination` are omitted when not applicable.
+
+**Error**
+```json
+{
+  "status": "error",
+  "message": "Human-readable message",
+  "timestamp": "2026-01-01T00:00:00+00:00",
+  "code": "optional_error_code",
+  "errors": {},
+  "metadata": {}
+}
+```
+
+Use the OpenAPI `data` schemas under each operation — never treat the request body schema as the response.
+""",
     "VERSION": "2.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": "/api/v2",
+    "TAGS": [
+        {"name": "Auth", "description": "Authentication, registration, and profile"},
+        {"name": "Specialists", "description": "Specialist profiles and availability"},
+        {"name": "Services", "description": "Company healthcare services catalog"},
+        {"name": "Appointments", "description": "Appointment scheduling"},
+        {"name": "Medical", "description": "Medical records"},
+        {"name": "Billing", "description": "Bills and invoices"},
+        {"name": "Payments", "description": "Payments, refunds, and payment methods"},
+        {"name": "Admin", "description": "Staff/admin-only operations"},
+        {"name": "Stats", "description": "Aggregated statistics"},
+    ],
 }

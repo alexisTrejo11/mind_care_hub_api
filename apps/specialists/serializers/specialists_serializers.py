@@ -2,11 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.core.validators import validate_email
 
-from drf_spectacular.utils import (
-    extend_schema_serializer,
-    extend_schema_field,
-    OpenApiExample,
-)
+from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
 
 from ..models import Specialist, SpecialistService, Service
@@ -18,48 +14,6 @@ from django.core.validators import MinValueValidator
 User = get_user_model()
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Specialist List Item",
-            description="Example of a specialist in listing view",
-            value={
-                "id": 1,
-                "specialist_name": "Dr. Jane Smith",
-                "license_number": "MD123456",
-                "bio": "Board-certified psychiatrist with 10+ years of experience...",
-                "specialization": "psychiatrist",
-                "years_experience": 10,
-                "consultation_fee": "150.00",
-                "is_accepting_new_patients": True,
-                "rating": "4.8",
-                "email": "dr.smith@example.com",
-                "phone": "+1234567890",
-                "service_count": 5,
-            },
-            response_only=True,
-        ),
-        OpenApiExample(
-            "Specialist with Rating",
-            description="Specialist with high rating",
-            value={
-                "id": 2,
-                "specialist_name": "Dr. John Doe",
-                "license_number": "PSY789012",
-                "bio": "Cognitive behavioral therapy specialist...",
-                "specialization": "psychologist",
-                "years_experience": 8,
-                "consultation_fee": "120.00",
-                "is_accepting_new_patients": True,
-                "rating": "4.9",
-                "email": "dr.doe@example.com",
-                "phone": "+0987654321",
-                "service_count": 3,
-            },
-            response_only=True,
-        ),
-    ]
-)
 class SpecialistSerializer(serializers.ModelSerializer):
     """
     Serializer for listing and basic specialist information.
@@ -175,58 +129,6 @@ class SpecialistSerializer(serializers.ModelSerializer):
         return obj.services.filter(is_available=True).count()
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Specialist Detail",
-            description="Complete specialist profile with nested relationships",
-            value={
-                "id": 1,
-                "user_info": {
-                    "full_name": "Dr. Jane Smith",
-                    "email": "dr.smith@example.com",
-                    "phone": "+1234567890",
-                },
-                "license_number": "MD123456",
-                "specialization": "psychiatrist",
-                "qualifications": "MD, Board Certified Psychiatrist, XYZ University",
-                "years_experience": 10,
-                "consultation_fee": "150.00",
-                "is_accepting_new_patients": True,
-                "bio": "Board-certified psychiatrist specializing in adult mental health...",
-                "rating": "4.8",
-                "services": [
-                    {
-                        "id": 101,
-                        "service_details": {
-                            "id": 1,
-                            "name": "Psychiatric Evaluation",
-                            "description": "Initial comprehensive psychiatric assessment",
-                            "category": "mental_health",
-                            "duration_minutes": 60,
-                            "base_price": "200.00",
-                        },
-                        "price_override": "150.00",
-                        "effective_price": "150.00",
-                        "is_available": True,
-                    }
-                ],
-                "availability": [
-                    {
-                        "id": 201,
-                        "day_of_week": 1,
-                        "start_time": "09:00:00",
-                        "end_time": "17:00:00",
-                        "is_recurring": True,
-                        "valid_from": "2024-01-01",
-                        "valid_until": None,
-                    }
-                ],
-            },
-            response_only=True,
-        )
-    ]
-)
 class SpecialistDetailSerializer(serializers.ModelSerializer):
     """
     Detailed serializer for comprehensive specialist profile information.
@@ -333,42 +235,6 @@ class SpecialistDetailSerializer(serializers.ModelSerializer):
         return AvailabilitySerializer(availability, many=True).data
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Create Specialist Request",
-            description="Example request for creating a new specialist profile",
-            value={
-                "user_id": 123,
-                "email": "dr.jones@example.com",
-                "first_name": "John",
-                "last_name": "Jones",
-                "phone": "+1234567890",
-                "license_number": "MD789012",
-                "specialization": "therapist",
-                "qualifications": "PhD in Clinical Psychology, Licensed Therapist",
-                "years_experience": 8,
-                "consultation_fee": "120.00",
-                "is_accepting_new_patients": True,
-                "bio": "Specializing in cognitive behavioral therapy for adults...",
-                "rating": "4.5",
-            },
-            request_only=True,
-        ),
-        OpenApiExample(
-            "Minimal Create Request",
-            description="Minimum required fields for specialist creation",
-            value={
-                "user_id": 124,
-                "license_number": "PSY345678",
-                "specialization": "psychologist",
-                "years_experience": 5,
-                "consultation_fee": "100.00",
-            },
-            request_only=True,
-        ),
-    ]
-)
 class SpecialistCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating new specialist profiles.
@@ -552,31 +418,6 @@ class SpecialistCreateSerializer(serializers.ModelSerializer):
         return attrs
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Update Specialist Request",
-            description="Example request for updating specialist profile",
-            value={
-                "license_number": "MD123457",
-                "specialization": "psychiatrist",
-                "qualifications": "MD, Board Certified, Updated Certification",
-                "years_experience": 11,
-                "consultation_fee": "160.00",
-                "is_accepting_new_patients": False,
-                "bio": "Updated bio with new specialties...",
-                "rating": "4.9",
-            },
-            request_only=True,
-        ),
-        OpenApiExample(
-            "Partial Update Request",
-            description="Update only specific fields",
-            value={"consultation_fee": "170.00", "is_accepting_new_patients": True},
-            request_only=True,
-        ),
-    ]
-)
 class SpecialistUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for updating existing specialist profiles.
@@ -704,32 +545,6 @@ class SpecialistUpdateSerializer(serializers.ModelSerializer):
         return value
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Search with Filters",
-            description="Search specialists with multiple filters",
-            value={
-                "specialization": "psychiatrist",
-                "min_rating": 4.0,
-                "max_fee": 200.00,
-                "accepting_new_patients": True,
-                "service_id": 5,
-                "search": "Smith",
-                "ordering": "-rating",
-                "page": 1,
-                "page_size": 20,
-            },
-            request_only=True,
-        ),
-        OpenApiExample(
-            "Simple Search",
-            description="Search with minimal parameters",
-            value={"search": "therapist", "page": 1, "page_size": 10},
-            request_only=True,
-        ),
-    ]
-)
 class SpecialistSearchSerializer(serializers.Serializer):
     """
     Serializer for searching and filtering specialists.
@@ -845,30 +660,6 @@ class SpecialistSearchSerializer(serializers.Serializer):
     )
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Specialist Service",
-            description="Service offered by a specialist with pricing",
-            value={
-                "id": 101,
-                "service": 5,
-                "service_details": {
-                    "id": 5,
-                    "name": "Psychiatric Evaluation",
-                    "description": "Initial comprehensive psychiatric assessment",
-                    "category": "mental_health",
-                    "duration_minutes": 60,
-                    "base_price": "200.00",
-                },
-                "price_override": "150.00",
-                "effective_price": "150.00",
-                "is_available": True,
-            },
-            response_only=True,
-        )
-    ]
-)
 class SpecialistServiceSerializer(serializers.ModelSerializer):
     """
     Serializer for services offered by specialists.
@@ -950,22 +741,6 @@ class SpecialistServiceSerializer(serializers.ModelSerializer):
         return obj.get_price()
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Add Service Request",
-            description="Request to add a service to a specialist",
-            value={"service_id": 5, "price_override": "175.50"},
-            request_only=True,
-        ),
-        OpenApiExample(
-            "Add Service without Override",
-            description="Add service using base price",
-            value={"service_id": 8},
-            request_only=True,
-        ),
-    ]
-)
 class SpecialistServiceCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for adding healthcare services to a specialist's offerings.

@@ -1,8 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from drf_spectacular.utils import extend_schema
+
 from apps.core.decorators.error_handler import api_error_handler
 from apps.core.decorators.rate_limit import rate_limit
 from apps.core.responses.api_response import APIResponse
+from apps.core.openapi import api_schema
 from apps.core.shared import mask_email
 from ..services.user_service import UserService
 from ..serializers import (
@@ -21,6 +24,16 @@ class PasswordResetRequestView(APIView):
     permission_classes = [AllowAny]
     serializer_class = PasswordResetRequestSerializer
 
+    @extend_schema(
+        **api_schema(
+            tags=["Auth"],
+            summary="Request password reset email",
+            request=PasswordResetRequestSerializer,
+            message_only=True,
+            response_name="PasswordResetRequest",
+            errors=(400, 429),
+        )
+    )
     @api_error_handler
     @rate_limit(profile="SENSITIVE", scope="password_reset")
     def post(self, request):
@@ -54,6 +67,16 @@ class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
     serializer_class = PasswordResetConfirmSerializer
 
+    @extend_schema(
+        **api_schema(
+            tags=["Auth"],
+            summary="Confirm password reset with token",
+            request=PasswordResetConfirmSerializer,
+            message_only=True,
+            response_name="PasswordResetConfirm",
+            errors=(400, 429),
+        )
+    )
     @api_error_handler
     @rate_limit(profile="RESTRICTED", scope="password_reset_confirm")
     def post(self, request):
@@ -87,6 +110,16 @@ class PasswordChangeView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = PasswordChangeSerializer
 
+    @extend_schema(
+        **api_schema(
+            tags=["Auth"],
+            summary="Change password for authenticated user",
+            request=PasswordChangeSerializer,
+            message_only=True,
+            response_name="PasswordChange",
+            errors=(400, 401, 429),
+        )
+    )
     @api_error_handler
     @rate_limit(profile="STANDARD", scope="password_change")
     def post(self, request):

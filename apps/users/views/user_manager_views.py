@@ -1,10 +1,69 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAdminUser
+from drf_spectacular.utils import extend_schema, extend_schema_view
+
 from apps.users.models import User
 from apps.users.serializers import UserSerializer
+from apps.core.openapi import api_schema
 from ..services.user_service import UserService
 
 
+@extend_schema_view(
+    list=extend_schema(
+        **api_schema(
+            tags=["Auth", "Admin"],
+            summary="List users (admin)",
+            data=UserSerializer,
+            many=True,
+            errors=(401, 403),
+        )
+    ),
+    retrieve=extend_schema(
+        **api_schema(
+            tags=["Auth", "Admin"],
+            summary="Retrieve user (admin)",
+            data=UserSerializer,
+            errors=(401, 403, 404),
+        )
+    ),
+    create=extend_schema(
+        **api_schema(
+            tags=["Auth", "Admin"],
+            summary="Create user (admin)",
+            request=UserSerializer,
+            data=UserSerializer,
+            status_code=201,
+            errors=(400, 401, 403),
+        )
+    ),
+    update=extend_schema(
+        **api_schema(
+            tags=["Auth", "Admin"],
+            summary="Update user (admin)",
+            request=UserSerializer,
+            data=UserSerializer,
+            errors=(400, 401, 403, 404),
+        )
+    ),
+    partial_update=extend_schema(
+        **api_schema(
+            tags=["Auth", "Admin"],
+            summary="Partially update user (admin)",
+            request=UserSerializer,
+            data=UserSerializer,
+            errors=(400, 401, 403, 404),
+        )
+    ),
+    destroy=extend_schema(
+        **api_schema(
+            tags=["Auth", "Admin"],
+            summary="Delete user (admin)",
+            message_only=True,
+            response_name="UserDelete",
+            errors=(401, 403, 404),
+        )
+    ),
+)
 class UserManagerViewSet(ModelViewSet):
     """
     ViewSet for the management of users by admin users.

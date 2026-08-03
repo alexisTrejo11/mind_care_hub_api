@@ -1,17 +1,11 @@
 from django.http import Http404
 from datetime import datetime
-from pytz import timezone
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import (
-    extend_schema_view,
-    extend_schema,
-    OpenApiExample,
-    OpenApiResponse,
-)
+from drf_spectacular.utils import extend_schema_view, extend_schema
 
 from apps.core.decorators.error_handler import api_error_handler
 from apps.core.decorators.rate_limit import rate_limit
@@ -21,6 +15,7 @@ from apps.core.exceptions.base_exceptions import (
     ValidationError,
 )
 from apps.core.responses.api_response import APIResponse
+from apps.core.openapi import api_schema
 from apps.specialists.services.specialist_availability import (
     SpecialistAvailabilityUseCases,
 )
@@ -38,131 +33,55 @@ from apps.core.permissions import IsAdminOrStaff, IsSpecialistOrStaff
 
 @extend_schema_view(
     list=extend_schema(
-        summary="List specialists",
-        description="""
-        Retrieve a paginated list of healthcare specialists with advanced filtering,
-        searching, and ordering capabilities.
-
-        **Features:**
-        - Filter by specialization, rating, fees, experience
-        - Search by name, email, qualifications, bio
-        - Order by rating, consultation fee, or experience
-        - Pagination support
-        - Service-specific filtering
-
-        All filter parameters are available in the query string.
-        """,
-        tags=["Specialists"],
-        responses={
-            200: OpenApiResponse(
-                response=SpecialistSerializer(many=True),
-                description="List of specialists retrieved successfully",
+        **api_schema(
+            tags=["Specialists"],
+            summary="List specialists",
+            description=(
+                "Paginated list of healthcare specialists with filtering, "
+                "search, and ordering via query string."
             ),
-            400: OpenApiResponse(description="Invalid search parameters"),
-            429: OpenApiResponse(description="Rate limit exceeded"),
-        },
-        examples=[
-            OpenApiExample(
-                "Successful response",
-                value={
-                    "success": True,
-                    "message": "Specialists retrieved successfully",
-                    "data": [
-                        {
-                            "id": 1,
-                            "specialist_name": "Dr. Jane Smith",
-                            "license_number": "MD123456",
-                            "bio": "Board-certified psychiatrist...",
-                            "specialization": "psychiatrist",
-                            "years_experience": 10,
-                            "consultation_fee": "150.00",
-                            "is_accepting_new_patients": True,
-                            "rating": "4.8",
-                            "email": "dr.smith@example.com",
-                            "phone": "+1234567890",
-                            "service_count": 5,
-                        }
-                    ],
-                    "pagination": {
-                        "total": 45,
-                        "page": 1,
-                        "page_size": 20,
-                        "total_pages": 3,
-                    },
-                },
-                response_only=True,
-                status_codes=["200"],
-            ),
-        ],
+            data=SpecialistSerializer,
+            paginated=True,
+            errors=(400, 429),
+        )
     ),
     retrieve=extend_schema(
-        summary="Get specialist details",
-        description="""
-        Retrieve detailed information about a specific healthcare specialist.
-        Includes user information, services offered, and availability schedule.
-        """,
-        tags=["Specialists"],
-        responses={
-            200: OpenApiResponse(
-                response=SpecialistDetailSerializer,
-                description="Specialist details retrieved",
+        **api_schema(
+            tags=["Specialists"],
+            summary="Get specialist details",
+            description=(
+                "Detailed specialist profile including services and availability."
             ),
-            404: OpenApiResponse(description="Specialist not found"),
-            429: OpenApiResponse(description="Rate limit exceeded"),
-        },
-        examples=[
-            OpenApiExample(
-                "Specialist details",
-                value={
-                    "success": True,
-                    "message": "Specialist details retrieved",
-                    "data": {
-                        "id": 1,
-                        "user_info": {
-                            "full_name": "Dr. Jane Smith",
-                            "email": "dr.smith@example.com",
-                            "phone": "+1234567890",
-                        },
-                        "license_number": "MD123456",
-                        "specialization": "psychiatrist",
-                        "qualifications": "MD, Board Certified Psychiatrist",
-                        "years_experience": 10,
-                        "consultation_fee": "150.00",
-                        "is_accepting_new_patients": True,
-                        "bio": "Specializing in adult psychiatry...",
-                        "rating": "4.8",
-                        "services": [
-                            {
-                                "id": 1,
-                                "service_details": {
-                                    "id": 1,
-                                    "name": "Psychiatric Evaluation",
-                                    "description": "Initial psychiatric assessment",
-                                    "category": "mental_health",
-                                    "duration_minutes": 60,
-                                    "base_price": "200.00",
-                                },
-                                "price_override": "150.00",
-                                "effective_price": "150.00",
-                                "is_available": True,
-                            }
-                        ],
-                        "availability": [
-                            {
-                                "day_of_week": 1,
-                                "start_time": "09:00:00",
-                                "end_time": "17:00:00",
-                                "is_recurring": True,
-                                "valid_from": "2024-01-01",
-                                "valid_until": None,
-                            }
-                        ],
-                    },
-                },
-                response_only=True,
-                status_codes=["200"],
-            ),
-        ],
+            data=SpecialistDetailSerializer,
+            errors=(404, 429),
+        )
+    ),
+    specialist_services=extend_schema(
+        **api_schema(
+            tags=["Specialists"],
+            summary="List services offered by a specialist",
+            data=SpecialistServiceSerializer,
+            many=True,
+            errors=(404, 429),
+        )
+    ),
+    available_slots=extend_schema(
+        **api_schema(
+            tags=["Specialists"],
+            summary="Available appointment slots for a date",
+            data=serializers.ListField(child=serializers.DictField()),
+            response_name="AvailableSlots",
+            errors=(400, 404, 429),
+        )
+    ),
+    by_specialization=extend_schema(
+        **api_schema(
+            tags=["Specialists"],
+            summary="Specialists grouped by specialization",
+            data=serializers.DictField(),
+            response_name="SpecialistsBySpecialization",
+            errors=(429,),
+        )
     ),
 )
 class SpecialistPublicViewSet(viewsets.ReadOnlyModelViewSet):
@@ -290,99 +209,76 @@ class SpecialistPublicViewSet(viewsets.ReadOnlyModelViewSet):
 
 @extend_schema_view(
     create=extend_schema(
-        summary="Create specialist profile",
-        description="""
-        Create a new healthcare specialist profile.
-
-        **Permissions:** Admin or staff only
-
-        **Note:** User must exist in the system and not already have a specialist profile.
-        """,
-        tags=["Specialists", "Admin"],
-        request=SpecialistCreateSerializer,
-        responses={
-            201: OpenApiResponse(
-                response=SpecialistSerializer,
-                description="Specialist profile created successfully",
-            ),
-            400: OpenApiResponse(
-                description="Invalid data or user already has specialist profile"
-            ),
-            403: OpenApiResponse(description="Permission denied - admin/staff only"),
-            429: OpenApiResponse(description="Rate limit exceeded"),
-        },
-        examples=[
-            OpenApiExample(
-                "Create request",
-                value={
-                    "user_id": 123,
-                    "email": "dr.jones@example.com",
-                    "first_name": "John",
-                    "last_name": "Jones",
-                    "phone": "+1234567890",
-                    "license_number": "MD789012",
-                    "specialization": "therapist",
-                    "qualifications": "PhD in Clinical Psychology",
-                    "years_experience": 8,
-                    "consultation_fee": "120.00",
-                    "is_accepting_new_patients": True,
-                    "bio": "Specializing in cognitive behavioral therapy...",
-                    "rating": "4.5",
-                },
-                request_only=True,
-                status_codes=["201"],
-            ),
-        ],
+        **api_schema(
+            tags=["Specialists", "Admin"],
+            summary="Create specialist profile",
+            description="Admin/staff only. User must exist and not already have a profile.",
+            request=SpecialistCreateSerializer,
+            data=SpecialistSerializer,
+            status_code=201,
+            errors=(400, 403, 429),
+        )
     ),
     update=extend_schema(
-        summary="Update specialist profile",
-        description="""
-        Update a specialist's profile information.
-
-        **Permissions:** Specialist can update own profile, admin/staff can update any
-        """,
-        tags=["Specialists", "Admin"],
-        request=SpecialistUpdateSerializer,
-        responses={
-            200: OpenApiResponse(
-                response=SpecialistSerializer, description="Specialist profile updated"
-            ),
-            400: OpenApiResponse(description="Invalid data"),
-            403: OpenApiResponse(
-                description="Permission denied - cannot update another specialist's profile"
-            ),
-            404: OpenApiResponse(description="Specialist not found"),
-            429: OpenApiResponse(description="Rate limit exceeded"),
-        },
+        **api_schema(
+            tags=["Specialists", "Admin"],
+            summary="Update specialist profile",
+            request=SpecialistUpdateSerializer,
+            data=SpecialistSerializer,
+            errors=(400, 403, 404, 429),
+        )
     ),
     partial_update=extend_schema(
-        summary="Partially update specialist profile",
-        description="Update specific fields of a specialist's profile",
-        tags=["Specialists", "Admin"],
-        request=SpecialistUpdateSerializer,
-        responses={
-            200: OpenApiResponse(
-                response=SpecialistSerializer,
-                description="Specialist profile partially updated",
-            ),
-        },
+        **api_schema(
+            tags=["Specialists", "Admin"],
+            summary="Partially update specialist profile",
+            request=SpecialistUpdateSerializer,
+            data=SpecialistSerializer,
+            errors=(400, 403, 404, 429),
+        )
     ),
     destroy=extend_schema(
-        summary="Delete specialist profile",
-        description="""
-        Permanently delete a specialist profile.
-
-        **Permissions:** Admin or staff only
-
-        **Warning:** This action is irreversible!
-        """,
-        tags=["Specialists", "Admin"],
-        responses={
-            200: OpenApiResponse(description="Specialist profile deleted successfully"),
-            403: OpenApiResponse(description="Permission denied - admin/staff only"),
-            404: OpenApiResponse(description="Specialist not found"),
-            429: OpenApiResponse(description="Rate limit exceeded"),
-        },
+        **api_schema(
+            tags=["Specialists", "Admin"],
+            summary="Delete specialist profile",
+            message_only=True,
+            response_name="SpecialistDelete",
+            errors=(403, 404, 429),
+        )
+    ),
+    activate=extend_schema(
+        **api_schema(
+            tags=["Specialists", "Admin"],
+            summary="Activate specialist",
+            data=SpecialistSerializer,
+            errors=(403, 404, 429),
+        )
+    ),
+    deactivate=extend_schema(
+        **api_schema(
+            tags=["Specialists", "Admin"],
+            summary="Deactivate specialist",
+            data=SpecialistSerializer,
+            errors=(403, 404, 429),
+        )
+    ),
+    add_service=extend_schema(
+        **api_schema(
+            tags=["Specialists"],
+            summary="Add service to specialist offerings",
+            data=SpecialistServiceSerializer,
+            status_code=201,
+            errors=(400, 403, 404, 429),
+        )
+    ),
+    remove_service=extend_schema(
+        **api_schema(
+            tags=["Specialists"],
+            summary="Remove service from specialist offerings",
+            message_only=True,
+            response_name="SpecialistRemoveService",
+            errors=(403, 404, 429),
+        )
     ),
 )
 class SpecialistManagementViewSet(viewsets.ModelViewSet):
@@ -434,13 +330,10 @@ class SpecialistManagementViewSet(viewsets.ModelViewSet):
         if self.request.user.is_anonymous:
             return queryset.none()
 
-        # Specialists can only see/manage their own profile
-        # Exception: admins/staff can see all for activation action
         is_specialist = self.request.user.user_type == "specialist"
         is_activation_action = self.action in ["activate", "deactivate"]
 
         if is_specialist and not is_activation_action:
-            # Specialists can only see their own profile
             if hasattr(self.request.user, "specialist_profile"):
                 queryset = queryset.filter(id=self.request.user.specialist_profile.id)
             else:
@@ -487,7 +380,6 @@ class SpecialistManagementViewSet(viewsets.ModelViewSet):
         """Update a specialist's profile completely"""
         instance = self.get_object()
 
-        # Check ownership for specialists
         self._check_ownership_permission(instance)
 
         serializer = self.get_serializer(instance, data=request.data, partial=False)

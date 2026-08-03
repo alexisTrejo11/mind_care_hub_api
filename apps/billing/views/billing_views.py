@@ -13,6 +13,7 @@ from apps.core.exceptions.base_exceptions import ValidationError
 from apps.core.decorators.error_handler import api_error_handler
 from apps.core.decorators.rate_limit import rate_limit
 from apps.core.responses.api_response import APIResponse
+from apps.core.openapi import api_schema
 
 from apps.billing.services import BillingService, InvoiceService, PaymentService
 from apps.billing.serializers import (
@@ -27,31 +28,88 @@ from apps.billing.serializers import (
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List bills with filtering", tags=["Billing"]),
-    retrieve=extend_schema(summary="Get bill details", tags=["Billing"]),
-    create=extend_schema(
-        summary="Create bill from appointment", tags=["Billing", "Admin"]
+    list=extend_schema(
+        **api_schema(
+            tags=["Billing"],
+            summary="List bills with filtering",
+            data=BillSerializer,
+            paginated=True,
+            errors=(401, 429),
+        )
     ),
-    update=extend_schema(summary="Update bill (staff only)", tags=["Billing", "Admin"]),
+    retrieve=extend_schema(
+        **api_schema(
+            tags=["Billing"],
+            summary="Get bill details",
+            data=BillSerializer,
+            errors=(401, 404, 429),
+        )
+    ),
+    create=extend_schema(
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="Create bill from appointment",
+            request=BillCreateSerializer,
+            data=BillSerializer,
+            status_code=201,
+            errors=(400, 401, 403, 429),
+        )
+    ),
+    update=extend_schema(
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="Update bill (staff only)",
+            request=BillUpdateSerializer,
+            data=BillSerializer,
+            errors=(400, 401, 403, 404, 429),
+        )
+    ),
     partial_update=extend_schema(
-        summary="Partial update bill (staff only)", tags=["Billing", "Admin"]
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="Partial update bill (staff only)",
+            request=BillUpdateSerializer,
+            data=BillSerializer,
+            errors=(400, 401, 403, 404, 429),
+        )
     ),
     send_invoice=extend_schema(
-        summary="Send bill invoice to patient",
-        tags=["Billing", "Admin"],
-        methods=["post"],
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="Send bill invoice to patient",
+            data=BillSerializer,
+            errors=(401, 403, 404, 429),
+        )
     ),
     send_reminder=extend_schema(
-        summary="Send payment reminder", tags=["Billing", "Admin"], methods=["post"]
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="Send payment reminder",
+            message_only=True,
+            response_name="BillSendReminder",
+            errors=(401, 403, 404, 429),
+        )
     ),
     mark_as_paid=extend_schema(
-        summary="Mark bill as paid", tags=["Billing", "Admin"], methods=["post"]
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="Mark bill as paid",
+            data=BillSerializer,
+            errors=(401, 403, 404, 429),
+        )
     ),
     cancel=extend_schema(
-        summary="Cancel bill", tags=["Billing", "Admin"], methods=["post"]
+        **api_schema(
+            tags=["Billing", "Admin"],
+            summary="Cancel bill",
+            data=BillSerializer,
+            errors=(401, 403, 404, 429),
+        )
     ),
     invoice_pdf=extend_schema(
-        summary="Download bill as PDF", tags=["Billing"], methods=["get"]
+        tags=["Billing"],
+        summary="Download bill as PDF",
+        responses={200: {"description": "PDF file", "content": {"application/pdf": {}}}},
     ),
 )
 class BillViewSet(viewsets.ModelViewSet):
@@ -456,6 +514,14 @@ class BillingStatsViewSet(APIView):
 
     permission_classes = [IsAdminOrStaff | IsSpecialist]
 
+    @extend_schema(
+        **api_schema(
+            tags=["Billing", "Stats"],
+            summary="Get billing statistics",
+            data=BillingStatsSerializer,
+            errors=(401, 403, 429),
+        )
+    )
     @api_error_handler
     @rate_limit(profile="READ_OPERATION", scope="billing_stats")
     def get(self, request):

@@ -1,0 +1,36 @@
+name: CSMA_API
+
+services:
+
+  api:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: csma_api_container
+    env_file:
+      - .env
+    environment:
+      # Entrypoint waits on these; map from DB_* used by Django settings
+      POSTGRES_HOST: ${DB_HOST}
+      POSTGRES_PORT: ${DB_PORT:-5432}
+    ports:
+      - "${APP_PORT:-8000}:${APP_PORT:-8000}"
+    expose:
+      - "${APP_PORT:-8000}"
+    volumes:
+      - .:/app
+      - logs_volume:/app/logs
+    networks:
+      - csma_network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+volumes:
+  logs_volume:
+    driver: local
+
+networks:
+  csma_network:
+    driver: bridge
+    name: csma_network

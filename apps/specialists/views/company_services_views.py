@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework import filters
@@ -8,6 +8,7 @@ from drf_spectacular.utils import extend_schema_view, extend_schema
 from apps.core.decorators.error_handler import api_error_handler
 from apps.core.decorators.rate_limit import rate_limit
 from apps.core.responses.api_response import APIResponse
+from apps.core.openapi import api_schema
 from apps.core.permissions import IsAdminOrStaff
 from ..serializers import (
     ServiceSerializer,
@@ -19,15 +20,76 @@ from ..services import CompanyServicesUseCases
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List services", tags=["Services"]),
-    retrieve=extend_schema(summary="Get service details", tags=["Services"]),
-    create=extend_schema(summary="Create service (admin)", tags=["Services", "Admin"]),
-    update=extend_schema(summary="Update service (admin)", tags=["Services", "Admin"]),
+    list=extend_schema(
+        **api_schema(
+            tags=["Services"],
+            summary="List services",
+            data=ServiceSerializer,
+            paginated=True,
+            errors=(400, 429),
+        )
+    ),
+    retrieve=extend_schema(
+        **api_schema(
+            tags=["Services"],
+            summary="Get service details",
+            data=ServiceSerializer,
+            errors=(404, 429),
+        )
+    ),
+    create=extend_schema(
+        **api_schema(
+            tags=["Services", "Admin"],
+            summary="Create service (admin)",
+            request=ServiceCreateSerializer,
+            data=ServiceSerializer,
+            status_code=201,
+            errors=(400, 403, 429),
+        )
+    ),
+    update=extend_schema(
+        **api_schema(
+            tags=["Services", "Admin"],
+            summary="Update service (admin)",
+            request=ServiceUpdateSerializer,
+            data=ServiceSerializer,
+            errors=(400, 403, 404, 429),
+        )
+    ),
     partial_update=extend_schema(
-        summary="Partial update service (admin)", tags=["Services", "Admin"]
+        **api_schema(
+            tags=["Services", "Admin"],
+            summary="Partial update service (admin)",
+            request=ServiceUpdateSerializer,
+            data=ServiceSerializer,
+            errors=(400, 403, 404, 429),
+        )
     ),
     destroy=extend_schema(
-        summary="Deactivate service (admin)", tags=["Services", "Admin"]
+        **api_schema(
+            tags=["Services", "Admin"],
+            summary="Deactivate service (admin)",
+            message_only=True,
+            response_name="ServiceDeactivate",
+            errors=(403, 404, 429),
+        )
+    ),
+    reactivate=extend_schema(
+        **api_schema(
+            tags=["Services", "Admin"],
+            summary="Reactivate service (admin)",
+            data=ServiceSerializer,
+            errors=(403, 404, 429),
+        )
+    ),
+    by_category=extend_schema(
+        **api_schema(
+            tags=["Services"],
+            summary="Services grouped by category",
+            data=serializers.DictField(),
+            response_name="ServicesByCategory",
+            errors=(429,),
+        )
     ),
 )
 class ServiceViewSet(viewsets.ModelViewSet):

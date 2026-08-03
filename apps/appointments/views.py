@@ -11,6 +11,7 @@ from apps.core.decorators.error_handler import api_error_handler
 from apps.core.decorators.rate_limit import rate_limit
 from apps.core.permissions import IsSpecialistOrStaff
 from apps.core.responses.api_response import APIResponse
+from apps.core.openapi import api_schema
 
 from .services import AppointmentService
 from .models import Appointment
@@ -25,31 +26,84 @@ from .serializers import (
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List appointments", tags=["Appointments"]),
-    retrieve=extend_schema(summary="Get appointment details", tags=["Appointments"]),
-    create=extend_schema(summary="Create appointment", tags=["Appointments"]),
+    list=extend_schema(
+        **api_schema(
+            tags=["Appointments"],
+            summary="List appointments",
+            data=AppointmentSerializer,
+            paginated=True,
+            errors=(401, 429),
+        )
+    ),
+    retrieve=extend_schema(
+        **api_schema(
+            tags=["Appointments"],
+            summary="Get appointment details",
+            data=AppointmentSerializer,
+            errors=(401, 404, 429),
+        )
+    ),
+    create=extend_schema(
+        **api_schema(
+            tags=["Appointments"],
+            summary="Create appointment",
+            request=AppointmentCreateSerializer,
+            data=AppointmentSerializer,
+            status_code=201,
+            errors=(400, 401, 429),
+        )
+    ),
     update=extend_schema(
-        summary="Update appointment (specialist/staff)", tags=["Appointments", "Admin"]
+        **api_schema(
+            tags=["Appointments", "Admin"],
+            summary="Update appointment (specialist/staff)",
+            request=AppointmentUpdateSerializer,
+            data=AppointmentSerializer,
+            errors=(400, 401, 403, 404, 429),
+        )
     ),
     partial_update=extend_schema(
-        summary="Partial update appointment (specialist/staff)",
-        tags=["Appointments", "Admin"],
+        **api_schema(
+            tags=["Appointments", "Admin"],
+            summary="Partial update appointment (specialist/staff)",
+            request=AppointmentUpdateSerializer,
+            data=AppointmentSerializer,
+            errors=(400, 401, 403, 404, 429),
+        )
     ),
     cancel=extend_schema(
-        summary="Cancel appointment", tags=["Appointments"], methods=["post"]
+        **api_schema(
+            tags=["Appointments"],
+            summary="Cancel appointment",
+            data=AppointmentSerializer,
+            errors=(400, 401, 404, 429),
+        )
     ),
     reschedule=extend_schema(
-        summary="Reschedule appointment", tags=["Appointments"], methods=["post"]
+        **api_schema(
+            tags=["Appointments"],
+            summary="Reschedule appointment",
+            request=AppointmentRescheduleSerializer,
+            data=AppointmentSerializer,
+            errors=(400, 401, 404, 429),
+        )
     ),
     stats=extend_schema(
-        summary="Get appointment statistics (specialist/staff)",
-        tags=["Appointments", "Stats"],
-        methods=["get"],
+        **api_schema(
+            tags=["Appointments", "Stats"],
+            summary="Get appointment statistics (specialist/staff)",
+            data=AppointmentStatsSerializer,
+            errors=(401, 403, 429),
+        )
     ),
     today_appointments=extend_schema(
-        summary="Get today's appointments (specialist/staff)",
-        tags=["Appointments", "Stats"],
-        methods=["get"],
+        **api_schema(
+            tags=["Appointments", "Stats"],
+            summary="Get today's appointments (specialist/staff)",
+            data=AppointmentSerializer,
+            many=True,
+            errors=(401, 403, 429),
+        )
     ),
 )
 class AppointmentViewSet(viewsets.ModelViewSet):
@@ -101,6 +155,9 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         """Get queryset with user-specific filtering"""
         queryset = AppointmentService.get_base_queryset()
 
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
+
         user = self.request.user
 
         if user.is_patient():
@@ -121,10 +178,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     @api_error_handler
     @rate_limit(profile="READ_OPERATION", scope="appointment_list")
-    @extend_schema(
-        request=AppointmentCreateSerializer,
-        responses={201: AppointmentSerializer},
-    )
     def list(self, request, *args, **kwargs):
         """List appointments with filters"""
         queryset = self.filter_queryset(self.get_queryset())
@@ -132,7 +185,11 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            return APIResponse.from_paginated_response(
+                self.paginator,
+                serializer.data,
+                message="Appointments retrieved successfully",
+            )
 
         serializer = self.get_serializer(queryset, many=True)
         return APIResponse.success(

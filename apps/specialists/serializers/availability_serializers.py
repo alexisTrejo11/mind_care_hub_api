@@ -1,63 +1,10 @@
 from rest_framework import serializers
-from drf_spectacular.utils import (
-    extend_schema_serializer,
-    extend_schema_field,
-    OpenApiExample,
-)
+from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
 
 from ..models import Availability
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Recurring Availability",
-            description="Recurring weekly availability for Mondays",
-            value={
-                "id": 1,
-                "day_of_week": 1,
-                "day_name": "Monday",
-                "start_time": "09:00:00",
-                "end_time": "17:00:00",
-                "is_recurring": True,
-                "valid_from": "2024-01-01",
-                "valid_until": None,
-            },
-            response_only=True,
-        ),
-        OpenApiExample(
-            "Temporary Availability",
-            description="One-time availability for a specific date range",
-            value={
-                "id": 2,
-                "day_of_week": 3,
-                "day_name": "Wednesday",
-                "start_time": "10:00:00",
-                "end_time": "15:00:00",
-                "is_recurring": False,
-                "valid_from": "2024-12-01",
-                "valid_until": "2024-12-31",
-            },
-            response_only=True,
-        ),
-        OpenApiExample(
-            "Weekend Availability",
-            description="Saturday availability with recurring schedule",
-            value={
-                "id": 3,
-                "day_of_week": 6,
-                "day_name": "Saturday",
-                "start_time": "08:00:00",
-                "end_time": "12:00:00",
-                "is_recurring": True,
-                "valid_from": "2024-01-01",
-                "valid_until": None,
-            },
-            response_only=True,
-        ),
-    ]
-)
 class AvailabilitySerializer(serializers.ModelSerializer):
     """
     Serializer for specialist availability schedule data.

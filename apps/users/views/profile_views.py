@@ -1,8 +1,11 @@
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
+
 from apps.core.decorators.error_handler import api_error_handler
 from apps.core.decorators.rate_limit import rate_limit
 from apps.core.responses.api_response import APIResponse
+from apps.core.openapi import api_schema
 from ..services.user_service import UserService
 from ..serializers import UserProfileSerializer
 
@@ -15,6 +18,14 @@ class UserProfileView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        **api_schema(
+            tags=["Auth"],
+            summary="Get profile of logged-in user",
+            data=UserProfileSerializer,
+            errors=(401, 429),
+        )
+    )
     @api_error_handler
     @rate_limit(profile="READ_OPERATION", scope="profile_get")
     def get(self, request):
@@ -24,12 +35,30 @@ class UserProfileView(APIView):
 
         return APIResponse.success(data=serializer.data)
 
+    @extend_schema(
+        **api_schema(
+            tags=["Auth"],
+            summary="Update full profile of logged-in user",
+            request=UserProfileSerializer,
+            data=UserProfileSerializer,
+            errors=(400, 401, 429),
+        )
+    )
     @api_error_handler
     @rate_limit(profile="WRITE_OPERATION", scope="profile_update")
     def put(self, request):
         """Update full profile of logged-in user"""
         return self._update_profile(request, partial=False)
 
+    @extend_schema(
+        **api_schema(
+            tags=["Auth"],
+            summary="Partially update profile of logged-in user",
+            request=UserProfileSerializer,
+            data=UserProfileSerializer,
+            errors=(400, 401, 429),
+        )
+    )
     @api_error_handler
     @rate_limit(profile="WRITE_OPERATION", scope="profile_patch")
     def patch(self, request):

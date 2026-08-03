@@ -2,13 +2,15 @@ from datetime import timedelta
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import filters
+from rest_framework import filters, serializers
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from apps.core.decorators.error_handler import api_error_handler
 from apps.core.decorators.rate_limit import rate_limit
 from apps.core.responses.api_response import APIResponse
+from apps.core.openapi import api_schema
 from apps.core.exceptions.base_exceptions import PrivacyError, ValidationError
 from apps.core.permissions import IsAdminOrStaff, IsPatient
 from .models import MedicalRecord
@@ -23,6 +25,116 @@ from .serializers import (
 from .services import MedicalRecordService
 
 
+@extend_schema_view(
+    list=extend_schema(
+        **api_schema(
+            tags=["Medical"],
+            summary="List medical records",
+            data=MedicalRecordSerializer,
+            paginated=True,
+            errors=(401, 429),
+        )
+    ),
+    retrieve=extend_schema(
+        **api_schema(
+            tags=["Medical"],
+            summary="Get medical record details",
+            data=MedicalRecordSerializer,
+            errors=(401, 403, 404, 429),
+        )
+    ),
+    create=extend_schema(
+        **api_schema(
+            tags=["Medical"],
+            summary="Create medical record",
+            request=MedicalRecordCreateSerializer,
+            data=MedicalRecordSerializer,
+            status_code=201,
+            errors=(400, 401, 403, 429),
+        )
+    ),
+    update=extend_schema(
+        **api_schema(
+            tags=["Medical"],
+            summary="Update medical record",
+            request=MedicalRecordUpdateSerializer,
+            data=MedicalRecordSerializer,
+            errors=(400, 401, 403, 404, 429),
+        )
+    ),
+    partial_update=extend_schema(
+        **api_schema(
+            tags=["Medical"],
+            summary="Partially update medical record",
+            request=MedicalRecordUpdateSerializer,
+            data=MedicalRecordSerializer,
+            errors=(400, 401, 403, 404, 429),
+        )
+    ),
+    destroy=extend_schema(
+        **api_schema(
+            tags=["Medical"],
+            summary="Delete medical record",
+            message_only=True,
+            response_name="MedicalRecordDelete",
+            errors=(401, 403, 404, 429),
+        )
+    ),
+    patient_records=extend_schema(
+        **api_schema(
+            tags=["Medical"],
+            summary="List records for a patient",
+            data=MedicalRecordSerializer,
+            many=True,
+            errors=(401, 403, 429),
+        )
+    ),
+    stats=extend_schema(
+        **api_schema(
+            tags=["Medical", "Stats"],
+            summary="Medical record statistics",
+            data=serializers.DictField(),
+            response_name="MedicalRecordStats",
+            errors=(401, 429),
+        )
+    ),
+    export_records=extend_schema(
+        **api_schema(
+            tags=["Medical"],
+            summary="Export medical records",
+            request=MedicalRecordExportSerializer,
+            data=serializers.DictField(),
+            response_name="MedicalRecordExportResult",
+            errors=(400, 401, 403, 429),
+        )
+    ),
+    change_confidentiality=extend_schema(
+        **api_schema(
+            tags=["Medical", "Admin"],
+            summary="Change confidentiality level",
+            data=MedicalRecordSerializer,
+            errors=(400, 401, 403, 404, 429),
+        )
+    ),
+    audit_log=extend_schema(
+        **api_schema(
+            tags=["Medical", "Admin"],
+            summary="Medical record audit log",
+            data=MedicalRecordAuditSerializer,
+            many=True,
+            errors=(401, 403, 429),
+        )
+    ),
+    upcoming_follow_ups=extend_schema(
+        **api_schema(
+            tags=["Medical"],
+            summary="Upcoming follow-up records",
+            data=MedicalRecordSerializer,
+            many=True,
+            errors=(401, 429),
+        )
+    ),
+)
 class MedicalRecordViewSet(ModelViewSet):
     """
     Unified ViewSet for medical record operations.

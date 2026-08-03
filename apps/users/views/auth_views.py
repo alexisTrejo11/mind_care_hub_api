@@ -1,17 +1,21 @@
-from django.utils import timezone
-from django.forms import ValidationError
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from drf_spectacular.utils import extend_schema
 
 from apps.core.exceptions.base_exceptions import ValidationError
 from apps.core.decorators.error_handler import api_error_handler
 from apps.core.decorators.rate_limit import rate_limit
 from apps.core.responses.api_response import APIResponse
+from apps.core.openapi import api_schema
 
 from ..services.user_service import UserService
 from ..serializers import (
     UserLoginSerializer,
     UserProfileSerializer,
+    LoginDataSerializer,
+    LogoutRequestSerializer,
+    TokenRefreshDataSerializer,
+    TokenRefreshSerializer,
 )
 
 
@@ -24,6 +28,15 @@ class UserLoginView(APIView):
     permission_classes = [AllowAny]
     serializer_class = UserLoginSerializer
 
+    @extend_schema(
+        **api_schema(
+            tags=["Auth"],
+            summary="Authenticate user and return JWT tokens",
+            request=UserLoginSerializer,
+            data=LoginDataSerializer,
+            errors=(400, 401, 429),
+        )
+    )
     @api_error_handler
     @rate_limit(profile="SENSITIVE", scope="login")
     def post(self, request):
@@ -54,6 +67,16 @@ class UserLogoutView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        **api_schema(
+            tags=["Auth"],
+            summary="Logout and blacklist refresh token",
+            request=LogoutRequestSerializer,
+            message_only=True,
+            response_name="Logout",
+            errors=(400, 401, 429),
+        )
+    )
     @api_error_handler
     @rate_limit(profile="STANDARD", scope="logout")
     def post(self, request):
@@ -79,6 +102,15 @@ class RefreshTokenView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        **api_schema(
+            tags=["Auth"],
+            summary="Refresh JWT access token",
+            request=TokenRefreshSerializer,
+            data=TokenRefreshDataSerializer,
+            errors=(400, 401, 429),
+        )
+    )
     @api_error_handler
     @rate_limit(profile="SENSITIVE", scope="token_refresh")
     def post(self, request):

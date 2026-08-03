@@ -1,8 +1,4 @@
 from rest_framework import serializers
-from drf_spectacular.utils import (
-    extend_schema_serializer,
-    OpenApiExample,
-)
 
 from decimal import Decimal
 
@@ -11,38 +7,6 @@ from ..models import Service, SpecialistService
 from rest_framework.exceptions import ValidationError
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Service Example",
-            description="Healthcare service with mental health category",
-            value={
-                "id": 1,
-                "name": "Psychiatric Evaluation",
-                "description": "Initial comprehensive psychiatric assessment including diagnosis and treatment planning",
-                "category": "mental_health",
-                "duration_minutes": 60,
-                "base_price": "200.00",
-                "is_active": True,
-            },
-            response_only=True,
-        ),
-        OpenApiExample(
-            "General Medicine Service",
-            description="General healthcare service",
-            value={
-                "id": 2,
-                "name": "General Checkup",
-                "description": "Routine health examination and consultation",
-                "category": "general_medicine",
-                "duration_minutes": 30,
-                "base_price": "80.00",
-                "is_active": True,
-            },
-            response_only=True,
-        ),
-    ]
-)
 class ServiceSerializer(serializers.ModelSerializer):
     """
     Serializer for healthcare service listings and basic service information.
@@ -117,34 +81,6 @@ class ServiceSerializer(serializers.ModelSerializer):
         }
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Create Service Request",
-            description="Create a new therapy service",
-            value={
-                "name": "Cognitive Behavioral Therapy",
-                "description": "Structured psychotherapy that focuses on challenging and changing cognitive distortions",
-                "category": "therapy",
-                "duration_minutes": 50,
-                "base_price": "120.00",
-            },
-            request_only=True,
-        ),
-        OpenApiExample(
-            "Create Diagnostic Service",
-            description="Create a diagnostic service",
-            value={
-                "name": "Blood Test Panel",
-                "description": "Comprehensive blood analysis including CBC, lipid panel, and metabolic panel",
-                "category": "diagnostic",
-                "duration_minutes": 15,
-                "base_price": "75.00",
-            },
-            request_only=True,
-        ),
-    ]
-)
 class ServiceCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating new healthcare services.
@@ -253,29 +189,6 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
         return value
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Update Service Request",
-            description="Update service information",
-            value={
-                "name": "Extended Psychiatric Evaluation",
-                "description": "Updated: 90-minute comprehensive assessment including family history",
-                "category": "mental_health",
-                "duration_minutes": 90,
-                "base_price": "250.00",
-                "is_active": True,
-            },
-            request_only=True,
-        ),
-        OpenApiExample(
-            "Deactivate Service",
-            description="Mark service as inactive",
-            value={"is_active": False},
-            request_only=True,
-        ),
-    ]
-)
 class ServiceUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for updating existing healthcare services.
@@ -385,37 +298,6 @@ class ServiceUpdateSerializer(serializers.ModelSerializer):
         return data
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Advanced Service Search",
-            description="Search services with multiple filters",
-            value={
-                "category": "mental_health",
-                "min_duration": 30,
-                "max_duration": 90,
-                "min_price": 50.00,
-                "max_price": 200.00,
-                "active_only": True,
-                "search": "therapy",
-                "ordering": "base_price",
-            },
-            request_only=True,
-        ),
-        OpenApiExample(
-            "Simple Category Filter",
-            description="Filter by category only",
-            value={"category": "wellness", "active_only": True},
-            request_only=True,
-        ),
-        OpenApiExample(
-            "Price Range Search",
-            description="Find affordable services",
-            value={"max_price": 100.00, "ordering": "duration_minutes"},
-            request_only=True,
-        ),
-    ]
-)
 class ServiceSearchSerializer(serializers.Serializer):
     """
     Serializer for searching and filtering healthcare services.
@@ -568,22 +450,6 @@ class ServiceSearchSerializer(serializers.Serializer):
         return data
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Monthly Statistics",
-            description="Get service statistics for current month",
-            value={"period": "month", "include_inactive": False},
-            request_only=True,
-        ),
-        OpenApiExample(
-            "All-time Statistics",
-            description="Get comprehensive statistics including inactive",
-            value={"period": "all_time", "include_inactive": True},
-            request_only=True,
-        ),
-    ]
-)
 class ServiceStatsSerializer(serializers.Serializer):
     """
     Serializer for retrieving service usage and performance statistics.
@@ -650,22 +516,6 @@ class ServiceStatsSerializer(serializers.Serializer):
         return value
 
 
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
-            "Add Service with Override",
-            description="Add service with custom pricing",
-            value={"service_id": 5, "price_override": 175.50},
-            request_only=True,
-        ),
-        OpenApiExample(
-            "Add Service Base Price",
-            description="Add service using standard pricing",
-            value={"service_id": 8},
-            request_only=True,
-        ),
-    ]
-)
 class SpecialistServiceCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for adding healthcare services to a specialist's offerings.

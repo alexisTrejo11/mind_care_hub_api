@@ -512,42 +512,65 @@ FIELD_ENCRYPTION_KEY=your-field-encryption-key
 
 ## 📚 API Documentation
 
+### Interactive docs (source of truth)
+
+| Resource | URL |
+| -------- | --- |
+| OpenAPI schema (JSON/YAML) | `/api/v2/schema/` |
+| Swagger UI | `/api/v2/schema/swagger-ui/` |
+| ReDoc | `/api/v2/schema/redoc/` |
+
+Checked-in artifact: [`schema.yml`](schema.yml). **Regenerate after endpoint or serializer contract changes:**
+
+```bash
+# local (Django env active)
+python manage.py spectacular --file schema.yml
+
+# or inside the API container
+docker exec csma_api_container python manage.py spectacular --file /tmp/schema.yml
+docker cp csma_api_container:/tmp/schema.yml ./schema.yml
+```
+
 ### Base URL
 
 ```
-https://api.mindcarehub.com/api/v1/
+/api/v2/
 ```
 
 ### Authentication
 
-All protected endpoints require a valid JWT token in the Authorization header:
+Protected endpoints require a JWT access token:
 
 ```
 Authorization: Bearer <access_token>
 ```
 
-### Response Format
+### Response envelope (`APIResponse`)
 
-All API responses follow a consistent format:
+All JSON endpoints use the same envelope. OpenAPI response schemas are named `*Success` / `*Paginated` and wrap the payload under `data`.
 
-#### Success Response
+#### Success
 
 ```json
 {
   "status": "success",
   "message": "Operation successful",
-  "timestamp": "2026-01-30T10:00:00Z",
-  "data": { ... },
+  "data": {},
+  "metadata": {},
   "pagination": {
-    "page": 1,
-    "per_page": 20,
     "total": 100,
-    "total_pages": 5
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 5,
+    "has_next": true,
+    "has_previous": false
   }
 }
 ```
 
-#### Error Response
+`data`, `metadata`, and `pagination` are omitted when not applicable.
+
+#### Error
 
 ```json
 {
@@ -555,38 +578,34 @@ All API responses follow a consistent format:
   "message": "Validation failed",
   "timestamp": "2026-01-30T10:00:00Z",
   "code": "validation_error",
-  "errors": [
-    {
-      "field": "email",
-      "message": "This field is required"
-    }
-  ]
+  "errors": {}
 }
 ```
 
+### Documenting new endpoints
+
+1. Return `APIResponse.*` from the view.
+2. Annotate with `@extend_schema(**api_schema(...))` from `apps.core.openapi` (or `extend_schema_view` + the same helpers).
+3. Pass the real **`data`** serializer (never the request serializer as the response body).
+4. Use tags from `SPECTACULAR_SETTINGS["TAGS"]`.
+5. Regenerate `schema.yml`.
+
 ### API Endpoints Overview
 
-#### 🔐 Authentication
+#### Authentication
 
-| Method | Endpoint                      | Description                |
-| ------ | ----------------------------- | -------------------------- |
-| `POST` | `/api/auth/register/`         | Register new user          |
-| `POST` | `/api/auth/login/`            | Login and get tokens       |
-| `POST` | `/api/auth/logout/`           | Logout and blacklist token |
-| `POST` | `/api/auth/refresh/`          | Refresh access token       |
-| `POST` | `/api/auth/activate/`         | Activate account           |
-| `POST` | `/api/auth/password/reset/`   | Request password reset     |
-| `POST` | `/api/auth/password/confirm/` | Confirm password reset     |
+| Method | Endpoint | Description |
+| ------ | -------- | ----------- |
+| `POST` | `/api/v2/auth/register/` | Register new user |
+| `POST` | `/api/v2/auth/login/` | Login and get tokens |
+| `POST` | `/api/v2/auth/logout/` | Logout and blacklist token |
+| `POST` | `/api/v2/auth/activate/` | Activate account |
+| `POST` | `/api/v2/auth/password/reset/request/` | Request password reset |
+| `POST` | `/api/v2/auth/password/reset/confirm/` | Confirm password reset |
+| `POST` | `/api/v2/auth/password/change/` | Change password |
+| `GET`/`PUT`/`PATCH` | `/api/v2/auth/profile/` | Current user profile |
 
-#### 👤 Users
-
-| Method  | Endpoint           | Description                 |
-| ------- | ------------------ | --------------------------- |
-| `GET`   | `/api/users/me/`   | Get current user profile    |
-| `PATCH` | `/api/users/me/`   | Update current user profile |
-| `GET`   | `/api/users/{id}/` | Get user by ID (admin)      |
-
-#### 👨‍⚕️ Specialists
+#### Specialists
 
 | Method | Endpoint                              | Description                 |
 | ------ | ------------------------------------- | --------------------------- |
@@ -641,7 +660,9 @@ Once the server is running, access the interactive API documentation:
 
 - **Swagger UI**: `https://api.mindcarehub.com/api/docs/`
 - **ReDoc**: `https://api.mindcarehub.com/api/redoc/`
-- **OpenAPI Schema**: `https://api.mindcarehub.com/api/schema/`
+- **OpenAPI Schema**: `/api/v2/schema/`
+- **Swagger UI**: `/api/v2/schema/swagger-ui/`
+- **ReDoc**: `/api/v2/schema/redoc/`
 
 ---
 

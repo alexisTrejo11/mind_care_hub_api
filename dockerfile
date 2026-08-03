@@ -46,6 +46,5 @@ ENV PYTHONUNBUFFERED=1 \
 
 USER django
 
-EXPOSE 8000
-
-ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+# Invoke via bash so bind-mounted host files without +x still run
+ENTRYPOINT ["/bin/bash", "/app/scripts/entrypoint.sh"]

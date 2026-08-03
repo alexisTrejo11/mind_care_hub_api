@@ -31,13 +31,11 @@ config/settings.py.backup
 # IDEs
 .DS_Store
 .vscode/
+*.vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# Node
-node_modules/
 
 # Testing
 .coverage

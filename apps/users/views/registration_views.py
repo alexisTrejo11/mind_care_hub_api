@@ -1,10 +1,13 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
+from drf_spectacular.utils import extend_schema
+
 from apps.core.decorators.error_handler import api_error_handler
 from apps.core.decorators.rate_limit import rate_limit
 from apps.core.responses.api_response import APIResponse
+from apps.core.openapi import api_schema
 from ..services.user_service import UserService
-from ..serializers import UserRegistrationSerializer
+from ..serializers import UserRegistrationSerializer, RegistrationDataSerializer
 from apps.notification.tasks import send_notification
 from apps.users.models import User
 from apps.core.shared import generate_activation_token
@@ -22,6 +25,16 @@ class UserRegistrationView(APIView):
     permission_classes = [AllowAny]
     serializer_class = UserRegistrationSerializer
 
+    @extend_schema(
+        **api_schema(
+            tags=["Auth"],
+            summary="Register a new user account",
+            request=UserRegistrationSerializer,
+            data=RegistrationDataSerializer,
+            status_code=201,
+            errors=(400, 429),
+        )
+    )
     @api_error_handler
     @rate_limit(profile="RESTRICTED", scope="registration")
     def post(self, request):
